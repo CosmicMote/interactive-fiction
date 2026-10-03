@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ story.title }}{% endblock %}
+{% block content %}
+<div class="story-header">
+  <h1>{{ story.title }}</h1>
+  {% if readonly %}
+  <p class="hint">Finished story · read-only{% if save %} · {{ save.name }}{% endif %}</p>
+  {% endif %}
+</div>
+<div id="story-area">
+  {% include "_story_area.html" %}
+</div>
+{% endblock %}

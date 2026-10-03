@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Start a story</h1>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="post" action="/stories" class="new-story">
+    <label for="setup_prompt">Setup <span class="hint">(optional: genre, setting, tone)</span></label>
+    <textarea id="setup_prompt" name="setup_prompt" rows="3"
+      placeholder="e.g. A slow-burn gothic mystery in a lighthouse on a fogbound northern coast. Leave blank and the story invents its own."></textarea>
+
+    <fieldset>
+      <legend>Length</legend>
+      {% for length, turns in targets.items() %}
+      <label class="choice">
+        <input type="radio" name="length" value="{{ length }}" {% if length == "medium" %}checked{% endif %}>
+        {{ length|capitalize }} <span class="hint">~{{ turns }} turns</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+
+    <fieldset>
+      <legend>Model</legend>
+      <label class="choice"><input type="radio" name="mode" value="local" checked> Local (Ollama)</label>
+      <label class="choice"><input type="radio" name="mode" value="claude"> Claude <span class="hint">{{ claude_model }}</span></label>
+      <label class="choice"><input type="radio" name="mode" value="compare"> Compare <span class="hint">local vs. Claude each turn</span></label>
+    </fieldset>
+
+    <label for="ollama_model">Local model <span class="hint">(used by Local and Compare)</span></label>
+    <select id="ollama_model" name="ollama_model">
+      {% for model, desc in ollama_models.items() %}
+      <option value="{{ model }}" {% if model == default_ollama %}selected{% endif %}>{{ desc }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="primary">Begin</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Saved stories</h2>
+  {% if saves %}
+  <ul class="saves">
+    {% for s in saves %}
+    <li>
+      <div>
+        <strong>{{ s.name }}</strong>
+        <span class="badge {{ s.status }}">{{ "Finished" if s.status == "concluded" else "In progress" }}</span>
+        <div class="hint">{{ s.turns }} turns · saved {{ s.saved_at.astimezone().strftime("%b %-d, %-I:%M %p") }}</div>
+      </div>
+      <form method="post" action="/saves/{{ s.filename }}/open">
+        <button type="submit">{{ "Read" if s.status == "concluded" else "Resume" }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="hint">No saves yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

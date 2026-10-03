@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fiction",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "fiction"],
+      "port": 8000
+    }
+  ]
+}
