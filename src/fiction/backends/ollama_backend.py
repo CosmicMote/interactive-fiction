@@ -8,9 +8,9 @@ from fiction.schema import StoryBeat
 
 
 class OllamaBackend:
-    def __init__(self, model: str, host: str | None = None, num_ctx: int = 8192):
+    def __init__(self, model: str, label: str | None = None, host: str | None = None, num_ctx: int = 8192):
         self.model = model
-        self.label = f"Local · {model}"
+        self.label = label or model
         self._client = ollama.Client(host=host)
         self._num_ctx = num_ctx
 

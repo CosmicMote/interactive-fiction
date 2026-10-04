@@ -13,7 +13,10 @@ uv run fiction
 Then open http://127.0.0.1:8000.
 
 - **Local models:** pull the ones you want to use with `ollama pull qwen3.6:35b-a3b`, `ollama pull gemma4:26b`, or `ollama pull llama3.1`.
-- **Claude and Compare mode:** set `ANTHROPIC_API_KEY` in the environment before starting. The default model is `claude-sonnet-5-5`.
+- **Claude models:** set `ANTHROPIC_API_KEY` in the environment before starting. Sonnet 5.5 is the default; Opus 5.5, Haiku 4.5 and Fable 5.1 are also offered.
+- **Compare mode:** pick any two models, including the same one twice.
+- **Story notes:** facts, progress and Save are in a drawer at the right edge. Hover to peek, or click the Notes tab to pin it open.
+- **Port:** 8000 by default; set `PORT` to change it.
 - **Saves:** written to `./saves` as JSON. Override the location with `FICTION_SAVES_DIR`.
 - **Ollama host:** override with `OLLAMA_HOST`.
 
@@ -34,4 +37,4 @@ Layout (`src/fiction/`):
 | `storage.py` | Save, load, list |
 | `web/` | FastAPI + Jinja2 + HTMX UI. The only layer that knows about HTTP |
 
-The model lists, length targets, and default models are in `config.py`.
+The model catalog (with per-model Claude settings), length targets, and defaults are in `config.py`.

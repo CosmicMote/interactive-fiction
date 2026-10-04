@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,7 +63,8 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
             "session": session,
             "readonly": readonly,
             "target": engine.target_turns(story),
-            "compare": story.config.mode == "compare",
+            "compare": story.config.compare,
+            "model_labels": [config.MODELS[m].label if m in config.MODELS else m for m in story.config.models],
         }
 
     def render_area(request: Request, sid: str, session: Session) -> HTMLResponse:
@@ -76,9 +78,11 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
             "index.html",
             {
                 "saves": storage.list_saves(saves_dir),
-                "ollama_models": config.OLLAMA_MODELS,
-                "default_ollama": config.DEFAULT_OLLAMA_MODEL,
-                "claude_model": config.DEFAULT_CLAUDE_MODEL,
+                "local_models": [m for m in config.MODELS.values() if m.provider == "ollama"],
+                "claude_models": [m for m in config.MODELS.values() if m.provider == "claude"],
+                "claude_available": config.claude_available(),
+                "default_a": config.DEFAULT_OLLAMA_MODEL,
+                "default_b": config.DEFAULT_CLAUDE_MODEL,
                 "targets": config.TARGET_TURNS,
                 "error": error,
             },
@@ -100,21 +104,17 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
         request: Request,
         setup_prompt: Annotated[str, Form()] = "",
         length: Annotated[str, Form()] = "medium",
-        mode: Annotated[str, Form()] = "local",
-        ollama_model: Annotated[str, Form()] = config.DEFAULT_OLLAMA_MODEL,
+        mode: Annotated[str, Form()] = "single",
+        model_a: Annotated[str, Form()] = config.DEFAULT_OLLAMA_MODEL,
+        model_b: Annotated[str, Form()] = config.DEFAULT_CLAUDE_MODEL,
     ):
-        if length not in config.TARGET_TURNS or mode not in ("local", "claude", "compare"):
+        if length not in config.TARGET_TURNS or mode not in ("single", "compare"):
             raise HTTPException(400, "Invalid story options.")
-        if ollama_model not in config.OLLAMA_MODELS:
-            raise HTTPException(400, "Unknown local model.")
+        models = [model_a, model_b] if mode == "compare" else [model_a]
+        if any(m not in config.MODELS for m in models):
+            raise HTTPException(400, "Unknown model.")
         story = StoryState(
-            config=StoryConfig(
-                setup_prompt=setup_prompt.strip(),
-                length=length,
-                mode=mode,
-                ollama_model=ollama_model,
-                claude_model=config.DEFAULT_CLAUDE_MODEL,
-            )
+            config=StoryConfig(setup_prompt=setup_prompt.strip(), length=length, models=models)
         )
         try:
             sid = open_session(story)
@@ -220,4 +220,4 @@ app = create_app()
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("fiction.web.app:app", host="127.0.0.1", port=8000)
+    uvicorn.run("fiction.web.app:app", host="127.0.0.1", port=int(os.environ.get("PORT", 8000)))

@@ -5,7 +5,8 @@
       "name": "fiction",
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "fiction"],
-      "port": 8000
+      "port": 8000,
+      "autoPort": true
     }
   ]
 }

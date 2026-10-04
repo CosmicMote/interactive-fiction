@@ -46,7 +46,7 @@ def test_cannot_continue_after_conclusion(make_state):
 
 
 def test_compare_only_picked_facts_carry_forward(make_state):
-    state = make_state(mode="compare")
+    state = make_state(compare=True)
     local, claude = FakeBackend("local"), FakeBackend("claude")
     candidates = engine.propose(state, None, [local, claude])
     assert [c.backend for c in candidates] == ["local", "claude"]

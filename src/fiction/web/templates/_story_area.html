@@ -1,6 +1,5 @@
 {# Swapped wholesale after every turn, so it must render the complete story area. #}
-<div class="layout">
-  <article class="transcript">
+<article class="transcript">
     {% for t in story.turns %}
       {% if t.player_input %}<div class="player-line">{{ t.player_input }}</div>{% endif %}
       <div class="beat">
@@ -23,7 +22,7 @@
           <div class="candidates">
             {% for c in session.pending.candidates %}
             <div class="candidate">
-              <div class="meta">{{ c.backend }}</div>
+              <div class="meta"><strong>{{ "AB"[loop.index0] }}</strong> · {{ c.backend }}</div>
               {% if c.beat %}
                 {{ c.beat.narration | paragraphs }}
                 <details>
@@ -71,16 +70,21 @@
         </form>
       {% endif %}
     {% endif %}
-  </article>
+</article>
 
-  <aside class="sidebar">
+{# Story notes live in a drawer off the right edge: hover the edge to peek, click the tab to pin. #}
+<aside class="drawer" aria-label="Story notes">
+  <div class="drawer-edge">
+    <button type="button" class="drawer-tab" aria-label="Show story notes"
+      onclick="document.body.classList.toggle('drawer-pinned')">Notes</button>
+  </div>
+  <div class="drawer-panel">
     <div class="progress">
       Turn {{ story.turns | length }} of ~{{ target }} · <span class="act">{{ story.act }}</span>
     </div>
-    <details {% if readonly %}open{% endif %}>
-      <summary>Established facts ({{ story.established_facts | length }})</summary>
-      <ul class="facts">{% for f in story.established_facts %}<li>{{ f }}</li>{% endfor %}</ul>
-    </details>
+    <div class="hint models">{{ model_labels | join(" vs. ") }}</div>
+    <h3>Established facts ({{ story.established_facts | length }})</h3>
+    <ul class="facts">{% for f in story.established_facts %}<li>{{ f }}</li>{% endfor %}</ul>
     {% if not readonly and story.turns %}
     <form class="save-form" hx-post="/s/{{ sid }}/save" hx-target="#save-status">
       <input type="text" name="name" placeholder="Save name (optional)">
@@ -88,5 +92,5 @@
       <div id="save-status"></div>
     </form>
     {% endif %}
-  </aside>
-</div>
+  </div>
+</aside>

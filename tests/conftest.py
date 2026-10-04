@@ -31,12 +31,8 @@ class FakeBackend:
 
 @pytest.fixture
 def make_state():
-    def _make(length: str = "short", mode: str = "local", setup: str = "") -> StoryState:
-        return StoryState(
-            config=StoryConfig(
-                setup_prompt=setup, length=length, mode=mode,
-                ollama_model="llama3.1:latest", claude_model="claude-sonnet-5-5",
-            )
-        )
+    def _make(length: str = "short", compare: bool = False, setup: str = "") -> StoryState:
+        models = ["ollama:llama3.1:latest", "claude:claude-sonnet-5-5"] if compare else ["ollama:llama3.1:latest"]
+        return StoryState(config=StoryConfig(setup_prompt=setup, length=length, models=models))
 
     return _make

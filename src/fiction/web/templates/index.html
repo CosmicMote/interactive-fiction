@@ -1,4 +1,18 @@
 {% extends "base.html" %}
+{% macro model_select(name, selected) %}
+<select id="{{ name }}" name="{{ name }}">
+  <optgroup label="Local (Ollama)">
+    {% for m in local_models %}
+    <option value="{{ m.id }}" {% if m.id == selected %}selected{% endif %}>{{ m.label }}{% if m.note %} - {{ m.note }}{% endif %}</option>
+    {% endfor %}
+  </optgroup>
+  <optgroup label="Claude">
+    {% for m in claude_models %}
+    <option value="{{ m.id }}" {% if m.id == selected and claude_available %}selected{% endif %}{% if not claude_available %} disabled{% endif %}>{{ m.label }}{% if m.note %} - {{ m.note }}{% endif %}</option>
+    {% endfor %}
+  </optgroup>
+</select>
+{% endmacro %}
 {% block content %}
 <section class="card">
   <h1>Start a story</h1>
@@ -19,18 +33,24 @@
     </fieldset>
 
     <fieldset>
-      <legend>Model</legend>
-      <label class="choice"><input type="radio" name="mode" value="local" checked> Local (Ollama)</label>
-      <label class="choice"><input type="radio" name="mode" value="claude"> Claude <span class="hint">{{ claude_model }}</span></label>
-      <label class="choice"><input type="radio" name="mode" value="compare"> Compare <span class="hint">local vs. Claude each turn</span></label>
+      <legend>Mode</legend>
+      <label class="choice"><input type="radio" name="mode" value="single" checked> One model</label>
+      <label class="choice"><input type="radio" name="mode" value="compare"> Compare two <span class="hint">pick the better beat each turn</span></label>
     </fieldset>
 
-    <label for="ollama_model">Local model <span class="hint">(used by Local and Compare)</span></label>
-    <select id="ollama_model" name="ollama_model">
-      {% for model, desc in ollama_models.items() %}
-      <option value="{{ model }}" {% if model == default_ollama %}selected{% endif %}>{{ desc }}</option>
-      {% endfor %}
-    </select>
+    <div class="model-pickers">
+      <div>
+        <label for="model_a"><span class="only-compare">Model A</span><span class="only-single">Model</span></label>
+        {{ model_select("model_a", default_a) }}
+      </div>
+      <div class="only-compare">
+        <label for="model_b">Model B <span class="hint">(can be the same as A)</span></label>
+        {{ model_select("model_b", default_b) }}
+      </div>
+    </div>
+    {% if not claude_available %}
+      <p class="hint">Claude models need <code>ANTHROPIC_API_KEY</code> set before starting the app.</p>
+    {% endif %}
 
     <button type="submit" class="primary">Begin</button>
   </form>

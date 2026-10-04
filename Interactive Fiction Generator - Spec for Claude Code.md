@@ -10,7 +10,7 @@ A locally-run, web-based app where the user and the model co-write a story one t
 
 1. **Start a story.** The player optionally gives a short setup prompt (genre, setting, tone) that nudges the kind of story generated, without itself becoming part of `established_facts`. Left blank, the app invents a setting on its own.
 2. **Choose a length.** Short / medium / long, which sets a target turn count and paces the story toward a resolution rather than an arbitrary stop.
-3. **Choose a model mode.** A single backend (local via Ollama, or the Claude API) by default, or Compare mode, which runs both per turn (see Compare mode below). Single-model play is the primary use case, so Compare mode should default off.
+3. **Choose a model mode.** One model by default - any local (Ollama) or Claude model from the catalog - or Compare mode, which runs two models per turn (see Compare mode below). Single-model play is the primary use case, so Compare mode should default off.
 4. **Play.** The player reacts to the current scene in free text. The app generates the next beat and shows it. Repeat.
 5. **Ending.** On the turn that reaches the length target, the app resolves the story rather than just stopping.
 6. **Save.** The player can save at any point; loading a save resumes the loop from that state. See Save and load for how save semantics work once a story concludes.
@@ -44,7 +44,7 @@ An optional toggle set at story creation, off by default. When on, each turn cal
 
 The player picks which beat becomes canonical. **Only the picked beat's `established_facts` get carried forward** - the rejected beat is discarded entirely, never merged. Blending facts from both would let details from a path the story never actually took leak into later turns, which breaks internal consistency even though nothing visibly "wrong" happened on screen.
 
-For the initial version, Compare mode is always local vs. Claude, not a free choice between any two backends. Letting the player pick which Claude model to compare against is a reasonable later addition - it's a parameter on `ClaudeBackend`, not a new backend, so it shouldn't need to change the architecture above.
+The player picks any two models from the catalog: local vs. local, Claude vs. Claude, local vs. Claude, or even the same model twice, to observe the non-determinism of LLM output. The story config stores a list of one or two model ids, and each slot gets its own backend instance.
 
 ## Pacing and length control
 
@@ -70,7 +70,7 @@ Python 3.13, managed with [uv](https://docs.astral.sh/uv/). Pydantic v2 for `Sto
 
 **Web UI: FastAPI + Jinja2 templates + [HTMX](https://htmx.org/), plain CSS with color tokens.** Gradio was the original suggestion, but planned post-V1 features - narration streamed word by word, and a color scheme that shifts with the story's tone - are awkward in Gradio (its themes are fixed at launch, and streaming a field out of partial JSON needs control of the transport). With FastAPI + HTMX, word-by-word becomes an SSE route, and tone theming becomes swapping CSS custom properties keyed off `body[data-tone]`. V1 has no build step and no Node toolchain. The engine, backends, and storage never import web code, so the UI layer can be replaced (e.g. with a React/Svelte front end) without touching the turn loop.
 
-Backends: the `ollama` Python package for the local model (`format=` with the Pydantic schema, `think=False`), and the `anthropic` Python SDK for Claude (structured outputs via `output_config.format`). Both use the same JSON Schema from `StoryBeat.model_json_schema()`. The default Claude model is **Claude Sonnet 5.5** (`claude-sonnet-5-5`), at low effort; the API key comes from the `ANTHROPIC_API_KEY` environment variable.
+Backends: the `ollama` Python package for the local model (`format=` with the Pydantic schema, `think=False`), and the `anthropic` Python SDK for Claude (structured outputs via `output_config.format`). Both use the same JSON Schema from `StoryBeat.model_json_schema()`. Claude models are selectable - Sonnet 5.5 (default), Opus 5.5, Haiku 4.5, Fable 5.1 - each with its own request settings (Haiku 4.5 takes no `effort`; server-side refusal fallbacks only on the newer models); the API key comes from the `ANTHROPIC_API_KEY` environment variable.
 
 The Ollama models offered in the UI are a fixed short list sized for the Mac Mini's 48GB of unified memory: `qwen3.6:35b-a3b` (default), `gemma4:26b`, and `llama3.1:8b`. The `gemma4:26b-mlx` build was excluded because it ignores `format=` and returns plain prose.
 
@@ -78,9 +78,10 @@ The Ollama models offered in the UI are a fixed short list sized for the Mac Min
 
 - **Save semantics:** resumable while in progress; a finished read-only record can also be saved once concluded.
 - **Local model choice:** a fixed short list, sized for the Mac Mini's 48GB of memory - not everything pulled locally.
-- **Compare mode scope:** always local vs. Claude for the initial version; selecting which Claude model to compare against is a reasonable later addition.
+- **Compare mode scope:** any model vs. any model, including a model against itself.
 - **UI stack:** FastAPI + Jinja2 + HTMX instead of Gradio, to leave room for streamed narration and tone-based theming.
-- **Default Claude model:** Claude Sonnet 5.5, authenticated via `ANTHROPIC_API_KEY`.
+- **Claude models:** selectable from a catalog (Sonnet 5.5, Opus 5.5, Haiku 4.5, Fable 5.1); Sonnet 5.5 is the default. Authenticated via `ANTHROPIC_API_KEY`.
+- **Story notes:** progress, established facts, and the save control live in a drawer hidden off the right edge (hover to peek, click to pin), so the reading view stays immersive.
 - **Setup prompt handling:** shapes tone, genre, and setting rather than becoming part of `established_facts`.
 
 These are now settled; nothing further to confirm before building.

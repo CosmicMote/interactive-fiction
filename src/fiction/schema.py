@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Act = Literal["setup", "rising", "climax", "resolution"]
 ACT_ORDER: tuple[Act, ...] = ("setup", "rising", "climax", "resolution")
 
 Length = Literal["short", "medium", "long"]
-Mode = Literal["local", "claude", "compare"]
 
 
 class StoryBeat(BaseModel):
@@ -31,13 +30,31 @@ class StoryBeat(BaseModel):
 
 
 class StoryConfig(BaseModel):
-    """Choices made at story creation. Fixed for the life of the story."""
+    """Choices made at story creation. Fixed for the life of the story.
+
+    `models` holds one model id for single-model play, or two for Compare mode.
+    Any pairing is allowed, including a model against itself.
+    """
 
     setup_prompt: str = ""
     length: Length = "medium"
-    mode: Mode = "local"
-    ollama_model: str
-    claude_model: str
+    models: list[str] = Field(min_length=1, max_length=2)
+
+    @property
+    def compare(self) -> bool:
+        return len(self.models) == 2
+
+    @model_validator(mode="before")
+    @classmethod
+    def _upgrade_v1(cls, data: Any) -> Any:
+        """v1 saves stored mode/ollama_model/claude_model instead of a model list."""
+        if isinstance(data, dict) and "mode" in data and "models" not in data:
+            data = dict(data)
+            mode = data.pop("mode")
+            local = f"ollama:{data.pop('ollama_model')}"
+            claude = f"claude:{data.pop('claude_model')}"
+            data["models"] = {"local": [local], "claude": [claude], "compare": [local, claude]}[mode]
+        return data
 
 
 class Turn(BaseModel):
@@ -95,7 +112,7 @@ SaveStatus = Literal["in_progress", "concluded"]
 class SaveFile(BaseModel):
     """On-disk save. `status` decides whether loading resumes play or shows a read-only record."""
 
-    version: int = 1
+    version: int = 2
     name: str
     status: SaveStatus
     saved_at: datetime = Field(default_factory=_now)
