@@ -17,7 +17,8 @@ Then open http://127.0.0.1:8000.
 - **Compare mode:** pick any two models, including the same one twice.
 - **Story notes:** facts, progress and Save are in a drawer at the right edge. Hover to peek, or click the Notes tab to pin it open.
 - **Port:** 8000 by default; set `PORT` to change it.
-- **Saves:** written to `./saves` as JSON. Override the location with `FICTION_SAVES_DIR`.
+- **Saves:** written to `./saves` as JSON. Override the location with `FICTION_SAVES_DIR`. Delete them from the home page (with confirmation).
+- **Theme:** Light / System / Dark switcher in the header, remembered per browser.
 - **Ollama host:** override with `OLLAMA_HOST`.
 
 ## Develop

@@ -44,3 +44,13 @@ def test_list_saves_newest_first_and_skips_junk(tmp_path, make_state):
 def test_load_rejects_path_traversal(tmp_path):
     with pytest.raises(storage.SaveNotFoundError):
         storage.load(tmp_path, "../etc/passwd.json")
+
+
+def test_delete_rejects_path_traversal(tmp_path):
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}")
+    saves = tmp_path / "saves"
+    saves.mkdir()
+    with pytest.raises(storage.SaveNotFoundError):
+        storage.delete(saves, "../outside.json")
+    assert outside.exists()

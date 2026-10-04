@@ -4,7 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Interactive Fiction{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // Apply the saved theme before first paint. "system" (or nothing saved) follows the OS.
+    try {
+      const t = localStorage.getItem("theme");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    } catch {}
+  </script>
+  <link rel="stylesheet" href="{{ static_url('style.css') }}">
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
   <script>
     // After a turn renders, bring the player's latest input (and the new beat below it) into view.
@@ -19,9 +26,29 @@
 <body data-tone="{% block tone %}{% endblock %}">
   <header class="site">
     <a href="/" class="home">Interactive Fiction</a>
+    <div class="theme-switch" role="group" aria-label="Color theme">
+      <button type="button" data-theme-choice="light">Light</button>
+      <button type="button" data-theme-choice="system">System</button>
+      <button type="button" data-theme-choice="dark">Dark</button>
+    </div>
   </header>
   <main>
     {% block content %}{% endblock %}
   </main>
+  <script>
+    (() => {
+      const buttons = document.querySelectorAll("[data-theme-choice]");
+      const current = () => document.documentElement.dataset.theme || "system";
+      const render = () => buttons.forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeChoice === current()));
+      buttons.forEach((b) => b.addEventListener("click", () => {
+        const choice = b.dataset.themeChoice;
+        if (choice === "system") delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = choice;
+        try { localStorage.setItem("theme", choice); } catch {}
+        render();
+      }));
+      render();
+    })();
+  </script>
 </body>
 </html>

@@ -40,13 +40,16 @@
 
     <div class="model-pickers">
       <div>
-        <label for="model_a"><span class="only-compare">Model A</span><span class="only-single">Model</span></label>
+        <label for="model_a">Model 1</label>
         {{ model_select("model_a", default_a) }}
       </div>
-      <div class="only-compare">
-        <label for="model_b">Model B <span class="hint">(can be the same as A)</span></label>
-        {{ model_select("model_b", default_b) }}
-      </div>
+      {# Added to the form only when Compare is chosen; see the script below. #}
+      <template id="model-b-template">
+        <div id="model-b">
+          <label for="model_b">Model 2 <span class="hint">(can be the same as Model 1)</span></label>
+          {{ model_select("model_b", default_b) }}
+        </div>
+      </template>
     </div>
     {% if not claude_available %}
       <p class="hint">Claude models need <code>ANTHROPIC_API_KEY</code> set before starting the app.</p>
@@ -67,9 +70,12 @@
         <span class="badge {{ s.status }}">{{ "Finished" if s.status == "concluded" else "In progress" }}</span>
         <div class="hint">{{ s.turns }} turns · saved {{ s.saved_at.astimezone().strftime("%b %-d, %-I:%M %p") }}</div>
       </div>
-      <form method="post" action="/saves/{{ s.filename }}/open">
-        <button type="submit">{{ "Read" if s.status == "concluded" else "Resume" }}</button>
-      </form>
+      <div class="row">
+        <form method="post" action="/saves/{{ s.filename }}/open">
+          <button type="submit">{{ "Read" if s.status == "concluded" else "Resume" }}</button>
+        </form>
+        <button type="button" class="danger" data-delete="{{ s.filename }}" data-name="{{ s.name }}">Delete</button>
+      </div>
     </li>
     {% endfor %}
   </ul>
@@ -77,4 +83,44 @@
   <p class="hint">No saves yet.</p>
   {% endif %}
 </section>
+
+<dialog id="delete-dialog" class="confirm">
+  <form method="post" id="delete-form">
+    <h3>Delete this story?</h3>
+    <p><strong id="delete-name"></strong> will be permanently deleted. This can't be undone.</p>
+    <div class="row end">
+      <button type="button" value="cancel" onclick="this.closest('dialog').close()">Cancel</button>
+      <button type="submit" class="danger-solid">Delete</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  // Mode: show one model picker, and add a second only for Compare. The second
+  // picker is removed from the DOM (not just hidden) so it isn't submitted.
+  (() => {
+    const form = document.querySelector(".new-story");
+    const template = document.getElementById("model-b-template");
+    const sync = () => {
+      const compare = form.querySelector("input[name=mode]:checked").value === "compare";
+      const existing = document.getElementById("model-b");
+      if (compare && !existing) template.after(template.content.cloneNode(true));
+      if (!compare && existing) existing.remove();
+    };
+    form.querySelectorAll("input[name=mode]").forEach((r) => r.addEventListener("change", sync));
+    sync();
+  })();
+
+  // Delete: confirm in a dialog before posting.
+  (() => {
+    const dialog = document.getElementById("delete-dialog");
+    document.querySelectorAll("[data-delete]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        document.getElementById("delete-name").textContent = btn.dataset.name;
+        document.getElementById("delete-form").action = `/saves/${encodeURIComponent(btn.dataset.delete)}/delete`;
+        dialog.showModal();
+      })
+    );
+  })();
+</script>
 {% endblock %}

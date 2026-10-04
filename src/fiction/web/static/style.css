@@ -1,4 +1,5 @@
-/* All colors are tokens so a tone-based scheme can later override them via body[data-tone="..."]. */
+/* All colors are tokens so a tone-based scheme can later override them via body[data-tone="..."].
+   Theme: follows the OS unless <html data-theme="light|dark"> is set by the theme switcher. */
 :root {
   --bg: #f7f4ee;
   --surface: #fffdf8;
@@ -11,13 +12,32 @@
   --error-bg: #fbe9e6;
   --error-text: #8c2a1c;
   --ok: #2f6b3a;
+  --danger: #a3321f;
+  --danger-solid: #b23a26;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1916;
+  --surface: #24211d;
+  --text: #e9e3d8;
+  --muted: #9b9184;
+  --accent: #d0875c;
+  --accent-text: #1b1916;
+  --border: #3a352e;
+  --player: #9db4cf;
+  --error-bg: #3a1f1a;
+  --error-text: #f2a597;
+  --ok: #8fcf99;
+  --danger: #f2a597;
+  --danger-solid: #c2503f;
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1b1916;
     --surface: #24211d;
     --text: #e9e3d8;
@@ -29,6 +49,9 @@
     --error-bg: #3a1f1a;
     --error-text: #f2a597;
     --ok: #8fcf99;
+    --danger: #f2a597;
+    --danger-solid: #c2503f;
+    color-scheme: dark;
   }
 }
 
@@ -40,13 +63,22 @@ body {
   color: var(--text);
   font-family: var(--sans);
   line-height: 1.5;
-  transition: background-color 0.6s, color 0.6s;
 }
 
 header.site {
-  padding: 12px 24px;
+  padding: 10px 24px;
   border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
+
+/* Theme switcher: a three-way segmented control. */
+.theme-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.theme-switch button {
+  border: none; border-radius: 0; padding: 4px 10px;
+  font-size: 0.8rem; color: var(--muted); background: transparent;
+}
+.theme-switch button + button { border-left: 1px solid var(--border); }
+.theme-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 header.site .home { color: var(--muted); text-decoration: none; font-weight: 600; }
 
 main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
@@ -89,10 +121,9 @@ button {
 }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 button:disabled { opacity: 0.5; cursor: wait; }
+button.danger { color: var(--danger); }
+button.danger-solid { background: var(--danger-solid); border-color: var(--danger-solid); color: #fff; }
 .new-story button.primary { margin-top: 20px; }
-/* Model B only matters in Compare mode. */
-.new-story:not(:has(input[name=mode][value=compare]:checked)) .only-compare,
-.new-story:has(input[name=mode][value=compare]:checked) .only-single { display: none; }
 
 .error {
   background: var(--error-bg);
@@ -108,6 +139,17 @@ button:disabled { opacity: 0.5; cursor: wait; }
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 10px 0; border-top: 1px solid var(--border);
 }
+.saves .row { margin-top: 0; }
+
+dialog.confirm {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 20px 24px; max-width: min(420px, calc(100vw - 32px));
+}
+dialog.confirm::backdrop { background: rgb(0 0 0 / 0.45); }
+dialog.confirm h3 { margin: 0 0 8px; font-family: var(--serif); }
+.row.end { justify-content: flex-end; }
+
 .badge { font-size: 0.75em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); margin-left: 6px; }
 .badge.concluded { color: var(--ok); }
 

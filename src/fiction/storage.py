@@ -59,6 +59,10 @@ def load(saves_dir: Path, filename: str) -> SaveFile:
         raise SaveNotFoundError(f"{filename} isn't a valid save") from e
 
 
+def delete(saves_dir: Path, filename: str) -> None:
+    _resolve(saves_dir, filename).unlink()
+
+
 def list_saves(saves_dir: Path) -> list[SaveSummary]:
     if not saves_dir.is_dir():
         return []

@@ -49,6 +49,8 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters["paragraphs"] = paragraphs
+    # Versioned static URLs, so a browser never keeps a stale stylesheet after an update.
+    templates.env.globals["static_url"] = lambda name: f"/static/{name}?v={int((HERE / 'static' / name).stat().st_mtime)}"
     sessions: dict[str, Session] = {}
 
     def get_session(sid: str) -> Session:
@@ -200,6 +202,14 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
         except BackendError as e:
             return render_index(request, error=str(e), status_code=400)
         return RedirectResponse(f"/s/{sid}", status_code=303)
+
+    @app.post("/saves/{filename}/delete")
+    def delete_save(filename: str):
+        try:
+            storage.delete(saves_dir, filename)
+        except storage.SaveNotFoundError:
+            raise HTTPException(404, "Save not found.")
+        return RedirectResponse("/", status_code=303)
 
     @app.get("/saves/{filename}", response_class=HTMLResponse)
     def view_save(request: Request, filename: str):

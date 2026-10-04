@@ -106,3 +106,27 @@ def test_drawer_holds_facts_and_save(client):
     r = client.post(f"{url}/turn")
     drawer = r.text[r.text.index('class="drawer"'):]
     assert "solo fact 1" in drawer and 'hx-post="' + url + '/save"' in drawer
+
+
+def test_delete_save(client, tmp_path):
+    url = start(client)
+    client.post(f"{url}/turn")
+    r = client.post(f"{url}/save", data={"name": "doomed"})
+    filename = re.search(r"doomed-[\w-]+\.json", r.text).group(0)
+    assert "doomed" in client.get("/").text
+
+    r = client.post(f"/saves/{filename}/delete", follow_redirects=False)
+    assert r.status_code == 303
+    assert not (tmp_path / filename).exists()
+    assert "doomed" not in client.get("/").text
+    assert client.post(f"/saves/{filename}/delete").status_code == 404
+
+
+def test_index_form_has_one_model_picker_until_compare(client):
+    html = client.get("/").text
+    outside_template = html.split("<template")[0] + html.split("</template>")[1]
+    assert 'name="model_a"' in outside_template and 'name="model_b"' not in outside_template
+    assert "Model 1" in html and "Model 2" in html
+    assert "Model A" not in html
+    assert 'href="/static/style.css?v=' in html
+    assert 'data-theme-choice="dark"' in html
