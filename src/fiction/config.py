@@ -61,7 +61,18 @@ TARGET_TURNS: dict[Length, int] = {
 RECENT_EXCHANGES = 2
 
 SAVES_DIR = Path(os.environ.get("FICTION_SAVES_DIR", Path.cwd() / "saves"))
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST")  # None -> ollama's default (localhost:11434)
+# Point at another machine (e.g. a Mac mini with a GPU) with OLLAMA_HOST=http://<host>:11434.
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST") or None  # None -> ollama's default (localhost:11434)
+OLLAMA_HOST_DISPLAY = OLLAMA_HOST or "localhost:11434"
+# Serve under a path prefix (e.g. BASE_PATH=/interactive-fiction) behind a reverse proxy that
+# forwards the full path. Empty serves at the root.
+def normalize_base_path(value: str) -> str:
+    """'/a/', 'a' and '/a' all become '/a'; '' and '/' become ''."""
+    value = value.strip("/")
+    return f"/{value}" if value else ""
+
+
+BASE_PATH = normalize_base_path(os.environ.get("BASE_PATH", ""))
 
 
 def claude_available() -> bool:

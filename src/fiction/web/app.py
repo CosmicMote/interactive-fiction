@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
 from fiction import config, engine, storage
-from fiction.backends import Backend, BackendError, make_backends
+from fiction.backends import Backend, BackendError, installed_models, local_model_status, make_backends
 from fiction.schema import StoryConfig, StoryState
 
 HERE = Path(__file__).parent
@@ -43,14 +43,22 @@ def paragraphs(text: str) -> Markup:
     return Markup("".join(f"<p>{escape(p)}</p>" for p in parts))
 
 
-def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> FastAPI:
+def create_app(
+    saves_dir: Path | None = None,
+    backend_factory=make_backends,
+    list_installed=lambda: installed_models(config.OLLAMA_HOST),
+    base_path: str | None = None,
+) -> FastAPI:
     saves_dir = saves_dir or config.SAVES_DIR
+    base = config.BASE_PATH if base_path is None else config.normalize_base_path(base_path)
     app = FastAPI(title="Interactive Fiction")
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters["paragraphs"] = paragraphs
+    # Prefix for every URL the pages link to, so the app works under BASE_PATH.
+    templates.env.globals["base"] = base
     # Versioned static URLs, so a browser never keeps a stale stylesheet after an update.
-    templates.env.globals["static_url"] = lambda name: f"/static/{name}?v={int((HERE / 'static' / name).stat().st_mtime)}"
+    templates.env.globals["static_url"] = lambda name: f"{base}/static/{name}?v={int((HERE / 'static' / name).stat().st_mtime)}"
     sessions: dict[str, Session] = {}
 
     def get_session(sid: str) -> Session:
@@ -75,6 +83,8 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
         )
 
     def render_index(request: Request, error: str | None = None, status_code: int = 200) -> HTMLResponse:
+        installed = list_installed()
+        local_status = local_model_status(installed)
         return templates.TemplateResponse(
             request,
             "index.html",
@@ -83,6 +93,9 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
                 "local_models": [m for m in config.MODELS.values() if m.provider == "ollama"],
                 "claude_models": [m for m in config.MODELS.values() if m.provider == "claude"],
                 "claude_available": config.claude_available(),
+                "local_status": local_status,
+                "ollama_running": installed is not None,
+                "ollama_host": config.OLLAMA_HOST_DISPLAY,
                 "default_a": config.DEFAULT_OLLAMA_MODEL,
                 "default_b": config.DEFAULT_CLAUDE_MODEL,
                 "targets": config.TARGET_TURNS,
@@ -115,6 +128,10 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
         models = [model_a, model_b] if mode == "compare" else [model_a]
         if any(m not in config.MODELS for m in models):
             raise HTTPException(400, "Unknown model.")
+        local_status = local_model_status(list_installed())
+        for m in models:
+            if local_status.get(m):
+                return render_index(request, error=f"{config.MODELS[m].label}: {local_status[m]}", status_code=400)
         story = StoryState(
             config=StoryConfig(setup_prompt=setup_prompt.strip(), length=length, models=models)
         )
@@ -122,7 +139,7 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
             sid = open_session(story)
         except BackendError as e:
             return render_index(request, error=str(e), status_code=400)
-        return RedirectResponse(f"/s/{sid}", status_code=303)
+        return RedirectResponse(f"{base}/s/{sid}", status_code=303)
 
     @app.get("/s/{sid}", response_class=HTMLResponse)
     def story_page(request: Request, sid: str):
@@ -196,12 +213,12 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
         except storage.SaveNotFoundError:
             raise HTTPException(404, "Save not found.")
         if record.status == "concluded":
-            return RedirectResponse(f"/saves/{filename}", status_code=303)
+            return RedirectResponse(f"{base}/saves/{filename}", status_code=303)
         try:
             sid = open_session(record.story)
         except BackendError as e:
             return render_index(request, error=str(e), status_code=400)
-        return RedirectResponse(f"/s/{sid}", status_code=303)
+        return RedirectResponse(f"{base}/s/{sid}", status_code=303)
 
     @app.post("/saves/{filename}/delete")
     def delete_save(filename: str):
@@ -209,7 +226,7 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
             storage.delete(saves_dir, filename)
         except storage.SaveNotFoundError:
             raise HTTPException(404, "Save not found.")
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse(f"{base}/", status_code=303)
 
     @app.get("/saves/{filename}", response_class=HTMLResponse)
     def view_save(request: Request, filename: str):
@@ -221,7 +238,13 @@ def create_app(saves_dir: Path | None = None, backend_factory=make_backends) -> 
         context["save"] = record
         return templates.TemplateResponse(request, "story.html", context)
 
-    return app
+    if not base:
+        return app
+    # Routes are defined at "/"; mount them under the prefix, and send the bare root there.
+    outer = FastAPI(title="Interactive Fiction")
+    outer.add_api_route("/", lambda: RedirectResponse(f"{base}/"), include_in_schema=False)
+    outer.mount(base, app)
+    return outer
 
 
 app = create_app()
@@ -230,4 +253,6 @@ app = create_app()
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("fiction.web.app:app", host="127.0.0.1", port=int(os.environ.get("PORT", 8000)))
+    # HOST=0.0.0.0 to accept connections from other machines (required inside a container).
+    host = os.environ.get("HOST", "127.0.0.1")
+    uvicorn.run("fiction.web.app:app", host=host, port=int(os.environ.get("PORT", 8000)))

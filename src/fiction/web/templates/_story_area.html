@@ -29,7 +29,7 @@
                   <summary>Facts ({{ c.beat.established_facts | length }}) · act: {{ c.beat.act }}</summary>
                   <ul>{% for f in c.beat.established_facts %}<li>{{ f }}</li>{% endfor %}</ul>
                 </details>
-                <button class="primary" hx-post="/s/{{ sid }}/choose" hx-vals='{"index": {{ loop.index0 }}}'
+                <button class="primary" hx-post="{{ base }}/s/{{ sid }}/choose" hx-vals='{"index": {{ loop.index0 }}}'
                   hx-target="#story-area" hx-disabled-elt="find button">Use this beat</button>
               {% else %}
                 <div class="error">{{ c.error }}</div>
@@ -39,25 +39,25 @@
           </div>
           <form class="row" hx-target="#story-area" hx-disabled-elt="find button" hx-indicator="#compare-spinner">
             <input type="hidden" name="player_input" value="{{ session.pending.player_input or '' }}">
-            <button hx-post="/s/{{ sid }}/turn">Regenerate both</button>
-            {% if story.turns %}<button hx-post="/s/{{ sid }}/discard">Rewrite my input</button>{% endif %}
+            <button hx-post="{{ base }}/s/{{ sid }}/turn">Regenerate both</button>
+            {% if story.turns %}<button hx-post="{{ base }}/s/{{ sid }}/discard">Rewrite my input</button>{% endif %}
             <span id="compare-spinner" class="spinner">Writing…</span>
           </form>
         </div>
 
       {% elif not story.turns %}
         {% if session.error %}
-          <button class="primary" hx-post="/s/{{ sid }}/turn" hx-target="#story-area"
+          <button class="primary" hx-post="{{ base }}/s/{{ sid }}/turn" hx-target="#story-area"
             hx-disabled-elt="this" hx-indicator="#open-spinner">Try again</button>
           <span id="open-spinner" class="spinner">Writing the opening…</span>
         {% else %}
-          <div hx-post="/s/{{ sid }}/turn" hx-trigger="load" hx-target="#story-area" class="loading">
+          <div hx-post="{{ base }}/s/{{ sid }}/turn" hx-trigger="load" hx-target="#story-area" class="loading">
             Writing the opening…
           </div>
         {% endif %}
 
       {% elif not story.concluded %}
-        <form class="turn-form" hx-post="/s/{{ sid }}/turn" hx-target="#story-area"
+        <form class="turn-form" hx-post="{{ base }}/s/{{ sid }}/turn" hx-target="#story-area"
           hx-disabled-elt="find textarea, find button" hx-indicator="#turn-spinner">
           <textarea name="player_input" rows="3" autofocus
             placeholder="What do you do, say, or notice?"
@@ -86,7 +86,7 @@
     <h3>Established facts ({{ story.established_facts | length }})</h3>
     <ul class="facts">{% for f in story.established_facts %}<li>{{ f }}</li>{% endfor %}</ul>
     {% if not readonly and story.turns %}
-    <form class="save-form" hx-post="/s/{{ sid }}/save" hx-target="#save-status">
+    <form class="save-form" hx-post="{{ base }}/s/{{ sid }}/save" hx-target="#save-status">
       <input type="text" name="name" placeholder="Save name (optional)">
       <button type="submit">{{ "Save finished story" if story.concluded else "Save" }}</button>
       <div id="save-status"></div>

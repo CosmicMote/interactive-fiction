@@ -130,3 +130,51 @@ def test_index_form_has_one_model_picker_until_compare(client):
     assert "Model A" not in html
     assert 'href="/static/style.css?v=' in html
     assert 'data-theme-choice="dark"' in html
+
+
+def make_client(tmp_path, installed):
+    return TestClient(create_app(
+        saves_dir=tmp_path,
+        backend_factory=lambda config: [FakeBackend("solo")],
+        list_installed=lambda: installed,
+    ))
+
+
+def test_unpulled_local_models_are_disabled_with_pull_hint(tmp_path):
+    client = make_client(tmp_path, {"llama3.1:latest"})
+    html = client.get("/").text
+    assert re.search(r'value="ollama:gemma4:26b"\s+disabled', html)
+    assert "not pulled - run: ollama pull gemma4:26b" in html
+    assert not re.search(r'value="ollama:llama3.1:latest"[^>]*disabled', html)
+    assert "haven't been pulled yet" in html
+
+
+def test_ollama_down_disables_all_local_models(tmp_path):
+    html = make_client(tmp_path, None).get("/").text
+    assert html.count("can&#39;t reach Ollama at localhost:11434") == 6  # 3 models x (Model 1 + Model 2 template)
+    assert "Can't reach Ollama at <code>localhost:11434</code>" in html
+
+
+def test_cannot_start_story_with_unpulled_model(tmp_path):
+    client = make_client(tmp_path, {"llama3.1:latest"})
+    r = client.post("/stories", data={"length": "short", "mode": "single", "model_a": "ollama:gemma4:26b"})
+    assert r.status_code == 400
+    assert "ollama pull gemma4:26b" in r.text
+
+
+def test_served_under_base_path(tmp_path):
+    app = create_app(saves_dir=tmp_path, backend_factory=lambda c: [FakeBackend("solo")], base_path="/fiction/")
+    client = TestClient(app)
+    assert client.get("/", follow_redirects=False).headers["location"] == "/fiction/"
+    page = client.get("/fiction/").text
+    assert 'action="/fiction/stories"' in page and 'href="/fiction/static/style.css' in page
+
+    r = client.post("/fiction/stories", data={"length": "short", "mode": "single"}, follow_redirects=False)
+    url = r.headers["location"]
+    assert url.startswith("/fiction/s/")
+    r = client.post(f"{url}/turn")
+    assert f'hx-post="{url}/save"' in r.text
+    filename = re.search(r"[\w-]+\.json", client.post(f"{url}/save", data={"name": "x"}).text).group(0)
+    assert client.post(f"/fiction/saves/{filename}/delete", follow_redirects=False).headers["location"] == "/fiction/"
+    stylesheet = re.search(r'href="(/fiction/static/style\.css[^"]*)"', page).group(1)
+    assert client.get(stylesheet).status_code == 200

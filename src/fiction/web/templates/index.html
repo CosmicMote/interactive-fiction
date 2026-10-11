@@ -3,7 +3,9 @@
 <select id="{{ name }}" name="{{ name }}">
   <optgroup label="Local (Ollama)">
     {% for m in local_models %}
-    <option value="{{ m.id }}" {% if m.id == selected %}selected{% endif %}>{{ m.label }}{% if m.note %} - {{ m.note }}{% endif %}</option>
+    {% set unavailable = local_status.get(m.id) %}
+    <option value="{{ m.id }}" {% if m.id == selected and not unavailable %}selected{% endif %}{% if unavailable %} disabled{% endif %}>
+      {{ m.label }}{% if unavailable %} ({{ unavailable }}){% elif m.note %} - {{ m.note }}{% endif %}</option>
     {% endfor %}
   </optgroup>
   <optgroup label="Claude">
@@ -17,7 +19,7 @@
 <section class="card">
   <h1>Start a story</h1>
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
-  <form method="post" action="/stories" class="new-story">
+  <form method="post" action="{{ base }}/stories" class="new-story">
     <label for="setup_prompt">Setup <span class="hint">(optional: genre, setting, tone)</span></label>
     <textarea id="setup_prompt" name="setup_prompt" rows="3"
       placeholder="e.g. A slow-burn gothic mystery in a lighthouse on a fogbound northern coast. Leave blank and the story invents its own."></textarea>
@@ -51,6 +53,12 @@
         </div>
       </template>
     </div>
+    {% if not ollama_running %}
+      <p class="hint">Can't reach Ollama at <code>{{ ollama_host }}</code>, so local models are unavailable.
+        Check that Ollama is running there (and, if it's another machine, that it's awake and listening on the network), then reload.</p>
+    {% elif local_status.values() | select | list %}
+      <p class="hint">Greyed-out local models haven't been pulled yet. Run the <code>ollama pull</code> command shown, then reload.</p>
+    {% endif %}
     {% if not claude_available %}
       <p class="hint">Claude models need <code>ANTHROPIC_API_KEY</code> set before starting the app.</p>
     {% endif %}
@@ -71,7 +79,7 @@
         <div class="hint">{{ s.turns }} turns · saved {{ s.saved_at.astimezone().strftime("%b %-d, %-I:%M %p") }}</div>
       </div>
       <div class="row">
-        <form method="post" action="/saves/{{ s.filename }}/open">
+        <form method="post" action="{{ base }}/saves/{{ s.filename }}/open">
           <button type="submit">{{ "Read" if s.status == "concluded" else "Resume" }}</button>
         </form>
         <button type="button" class="danger" data-delete="{{ s.filename }}" data-name="{{ s.name }}">Delete</button>
@@ -117,7 +125,7 @@
     document.querySelectorAll("[data-delete]").forEach((btn) =>
       btn.addEventListener("click", () => {
         document.getElementById("delete-name").textContent = btn.dataset.name;
-        document.getElementById("delete-form").action = `/saves/${encodeURIComponent(btn.dataset.delete)}/delete`;
+        document.getElementById("delete-form").action = `{{ base }}/saves/${encodeURIComponent(btn.dataset.delete)}/delete`;
         dialog.showModal();
       })
     );

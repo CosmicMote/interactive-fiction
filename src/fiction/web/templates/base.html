@@ -25,7 +25,7 @@
 {# data-tone is the hook for tone-based color schemes later: style.css keys colors off it. #}
 <body data-tone="{% block tone %}{% endblock %}">
   <header class="site">
-    <a href="/" class="home">Interactive Fiction</a>
+    <a href="{{ base }}/" class="home">Interactive Fiction</a>
     <div class="theme-switch" role="group" aria-label="Color theme">
       <button type="button" data-theme-choice="light">Light</button>
       <button type="button" data-theme-choice="system">System</button>

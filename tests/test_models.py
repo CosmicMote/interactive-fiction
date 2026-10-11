@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import httpx
+import ollama
 import pytest
 
 from fiction import config
-from fiction.backends import ClaudeBackend, OllamaBackend, make_backend, make_backends
+from fiction.backends import BackendError, ClaudeBackend, OllamaBackend, installed_models, make_backend, make_backends
 from fiction.schema import SaveFile, StoryConfig
 
 
@@ -61,3 +63,15 @@ def test_claude_request_respects_per_model_settings(monkeypatch, model_id):
     assert sent["model"] == option.name
     assert sent["output_config"].get("effort") == option.effort
     assert ("fallbacks" in sent) == option.fallbacks
+
+
+@pytest.mark.parametrize("error", [ConnectionError("refused"), httpx.ConnectTimeout("timed out")])
+def test_unreachable_ollama_is_handled(monkeypatch, error):
+    def fail(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(ollama.Client, "list", fail)
+    monkeypatch.setattr(ollama.Client, "chat", fail)
+    assert installed_models("http://192.0.2.1:11434") is None
+    with pytest.raises(BackendError, match="Can't reach Ollama"):
+        OllamaBackend("llama3.1").generate_beat("system", "prompt")
